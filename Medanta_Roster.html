@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medanta OPD Roster — Operations</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0d2137;
+    --navy2: #1a3a5c;
+    --green-dark: #1a472a;
+    --green-mid: #2d6a4f;
+    --red-dark: #922b21;
+    --red-mid: #c0392b;
+    --blue-btn: #0f4c81;
+    --gray-bg: #f4f6f9;
+    --border: #dde3ec;
+    --text: #1a2332;
+    --text-muted: #5a6a7e;
+    --white: #ffffff;
+    --M-bg: #fef9c3; --M-text: #7c5e00;
+    --G-bg: #dcfce7; --G-text: #14532d;
+    --G2-bg: #dbeafe; --G2-text: #1e3a5f;
+    --E-bg: #fef3c7; --E-text: #92400e;
+    --Leave-bg: #fce7f3; --Leave-text: #831843;
+    --Off-bg: #f1f3f5; --Off-text: #6b7280;
+    --cluster-bg: #e8edf5;
+    --cluster-text: #2c3e50;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--gray-bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--navy);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    border-bottom: 3px solid var(--red-mid);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 40px; height: 40px;
+    background: var(--red-mid);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -1px;
+    flex-shrink: 0;
+  }
+  .topbar-title { color: #fff; font-size: 16px; font-weight: 600; line-height: 1.2; }
+  .topbar-sub { color: #8fa8c8; font-size: 11px; margin-top: 2px; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* ── WEEK NAV ── */
+  .week-nav {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px; padding: 4px 10px;
+  }
+  .week-nav button {
+    background: none; border: none; color: #fff; cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 0 4px; opacity: 0.8;
+  }
+  .week-nav button:hover { opacity: 1; }
+  .week-label {
+    font-size: 12px; font-weight: 500; color: #fff;
+    min-width: 180px; text-align: center;
+    font-family: 'DM Mono', monospace;
+  }
+  .week-badge {
+    background: var(--red-mid); color: #fff;
+    font-size: 10px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 7px 14px; font-size: 12px; font-weight: 500;
+    cursor: pointer; border-radius: 7px; border: 1.5px solid transparent;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-outline {
+    background: #fff; border-color: var(--border); color: var(--text);
+  }
+  .btn-outline:hover { background: var(--gray-bg); border-color: #b0bbc8; }
+  .btn-green { background: var(--green-dark); color: #fff; border-color: var(--green-dark); }
+  .btn-green:hover { background: var(--green-mid); }
+  .btn-blue { background: var(--blue-btn); color: #fff; border-color: var(--blue-btn); }
+  .btn-blue:hover { opacity: 0.88; }
+  .btn-red { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .btn-red:hover { background: #b91c1c; }
+
+  /* ── CONTROLS BAR ── */
+  .controls-bar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    padding: 8px 24px;
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+  }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+  .leg-chip {
+    width: 32px; height: 20px; border-radius: 4px;
+    font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── TABLE CONTAINER ── */
+  .table-wrap {
+    padding: 0 24px 16px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%; border-collapse: collapse;
+    background: #fff;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--border);
+    min-width: 820px;
+    font-size: 11.5px;
+  }
+  thead tr { background: transparent; }
+
+  th {
+    padding: 8px 6px; text-align: center;
+    font-weight: 600; font-size: 10.5px;
+    border: 1px solid rgba(255,255,255,0.15);
+    letter-spacing: 0.3px;
+  }
+  .th-name {
+    background: var(--navy2); color: #fff;
+    text-align: left; padding-left: 14px;
+    width: 160px; min-width: 160px;
+  }
+  .th-cluster { background: var(--green-dark); color: #fff; width: 90px; min-width: 90px; }
+  .th-day { background: var(--red-mid); color: #fff; min-width: 70px; }
+  .th-sun { background: var(--red-dark); color: #fff; min-width: 64px; }
+
+  td {
+    padding: 6px 5px; text-align: center;
+    border: 1px solid #edf0f5; font-size: 11px;
+  }
+  tbody tr:hover { background: #f7f9fd; }
+  tbody tr:hover td { border-color: #d8dfe8; }
+
+  .td-name {
+    text-align: left; padding-left: 14px;
+    font-weight: 500; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 160px;
+  }
+  .td-cluster { color: var(--text-muted); font-size: 10px; font-weight: 500; }
+
+  /* shift cells */
+  .cell-M { background: var(--M-bg); color: var(--M-text); font-weight: 700; font-family: 'DM Mono', monospace; }
+  .cell-G { background: var(--G-bg); color: var(--G-text); font-weight: 700; font-family: 'DM Mono', monospace; }
+  .cell-G2 { background: var(--G2-bg); color: var(--G2-text); font-weight: 700; font-family: 'DM Mono', monospace; font-size: 10px; }
+  .cell-E { background: var(--E-bg); color: var(--E-text); font-weight: 700; font-family: 'DM Mono', monospace; }
+  .cell-WOFF { background: var(--Off-bg); color: var(--Off-text); font-size: 9.5px; font-weight: 500; }
+  .cell-Leave { background: var(--Leave-bg); color: var(--Leave-text); font-size: 9.5px; font-style: italic; font-weight: 500; }
+
+  /* cluster header rows */
+  .cluster-header td {
+    background: var(--cluster-bg);
+    color: var(--cluster-text);
+    font-weight: 600; font-size: 10.5px;
+    text-align: left; padding-left: 14px;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    border-color: #d0d8e4;
+  }
+  .cluster-slot-label {
+    font-weight: 400; font-size: 9.5px;
+    color: var(--text-muted); margin-left: 6px; text-transform: none; letter-spacing: 0;
+  }
+
+  /* ── NOTE BAR ── */
+  .note-bar {
+    margin: 0 24px 20px;
+    background: #fffbeb; border: 1px solid #f59e0b;
+    border-radius: 8px; padding: 8px 14px;
+    font-size: 11px; color: #78350f;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .note-icon { font-size: 14px; flex-shrink: 0; }
+
+  /* ── MODAL ── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(13,33,55,0.6); z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px;
+    border: 1px solid var(--border); padding: 24px;
+    width: 340px; max-width: 96vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  .modal label { font-size: 11px; font-weight: 500; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  .modal select {
+    width: 100%; margin-bottom: 14px; padding: 8px 10px;
+    font-size: 12px; border: 1.5px solid var(--border);
+    border-radius: 7px; background: #fff; color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .modal select:focus { outline: none; border-color: var(--blue-btn); }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+  /* ── PRINT ── */
+  @media print {
+    .topbar, .controls-bar, .legend, .modal-bg { display: none !important; }
+    .table-wrap { padding: 0; }
+    table { border-radius: 0; font-size: 10px; }
+    body { background: #fff; }
+    .print-header { display: block !important; text-align: center; padding: 12px 0 6px; }
+    .print-title { font-size: 16px; font-weight: 700; }
+    .print-sub { font-size: 11px; color: #555; margin-top: 3px; }
+  }
+  .print-header { display: none; }
+
+  @media (max-width: 600px) {
+    .topbar, .controls-bar { padding: 10px 12px; }
+    .table-wrap { padding: 0 8px 12px; }
+    .legend { padding: 8px 12px; }
+    .note-bar { margin: 0 8px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-header">
+  <div class="print-title">Medanta Super Speciality Hospital — OPD Roster</div>
+  <div class="print-sub" id="print-week-label"></div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">M</div>
+    <div>
+      <div class="topbar-title">Medanta OPD Roster &mdash; Operations</div>
+      <div class="topbar-sub">Shift + Cluster fixed per week &middot; Auto rotates every Monday</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)" title="Previous week">&#8592;</button>
+      <div class="week-label" id="week-label">—</div>
+      <button onclick="changeWeek(1)" title="Next week">&#8594;</button>
+    </div>
+    <div class="week-badge" id="week-badge">Week 1</div>
+    <button class="btn btn-blue" onclick="exportCSV()">&#8595; Export CSV</button>
+    <button class="btn btn-outline" onclick="window.print()">&#128438; Print</button>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls-bar">
+  <button class="btn btn-green" onclick="regenWeek()">&#8635; Regenerate This Week</button>
+  <button class="btn btn-outline" onclick="openLeave()">+ Add Leave</button>
+  <button class="btn btn-red" onclick="clearLeaves()">&#215; Clear Leaves</button>
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <span style="font-size:11px;font-weight:600;color:var(--text-muted);margin-right:4px">Shifts:</span>
+  <div class="leg"><div class="leg-chip cell-M">M</div><span>Morning</span></div>
+  <div class="leg"><div class="leg-chip cell-G">G</div><span>General</span></div>
+  <div class="leg"><div class="leg-chip cell-G2">G2</div><span>General 2nd (1:30 PM relieve)</span></div>
+  <div class="leg"><div class="leg-chip cell-E">E</div><span>Evening</span></div>
+  <div class="leg"><div class="leg-chip cell-Leave" style="width:38px;font-size:9px">Leave</div><span>On Leave</span></div>
+  <div class="leg"><div class="leg-chip cell-WOFF" style="width:38px;font-size:9px">W/OFF</div><span>Weekly Off</span></div>
+</div>
+
+<!-- TABLE -->
+<div class="table-wrap">
+  <table id="roster-table">
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- NOTE -->
+<div class="note-bar">
+  <span class="note-icon">&#9888;</span>
+  <span><strong>G2 Note:</strong> Lunch Relieve &mdash; Uro and GI &amp; Ortho. Uro Relieving to be started from <strong>01:30 PM</strong>. Relieve.</span>
+</div>
+
+<!-- LEAVE MODAL -->
+<div class="modal-bg" id="leave-modal">
+  <div class="modal">
+    <h3>Manage Staff Leave</h3>
+    <label>Select Staff</label>
+    <select id="lv-staff"></select>
+    <label>Select Day</label>
+    <select id="lv-day">
+      <option value="0">Monday</option>
+      <option value="1">Tuesday</option>
+      <option value="2">Wednesday</option>
+      <option value="3">Thursday</option>
+      <option value="4">Friday</option>
+      <option value="5">Saturday</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeLeave()">Cancel</button>
+      <button class="btn btn-red" onclick="doLeave(false)">Remove Leave</button>
+      <button class="btn btn-green" onclick="doLeave(true)">Add Leave</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLUSTERS = [
+  {name:"Neurology", slots:4},
+  {name:"Respiratory", slots:1},
+  {name:"Urology", slots:2},
+  {name:"GI & Ortho", slots:2},
+  {name:"Gynae", slots:4}
+];
+
+const ROT_STAFF = [
+  "Mr. Kunj Bihari Tiwari",
+  "Mr. Siddhant Shukla",
+  "Ms. Dolly Sharma",
+  "Mr. Abhinandan Shukla",
+  "Mr. Girdhar Singh",
+  "Mr. Mohd Aquib",
+  "Mr. Naseem Akhtar",
+  "Ms. Dipali Singh",
+  "Mr. Subham Kumar",
+  "Mr. Lalit Singh Bisht",
+  "Ms. Ranjana Maddheshiya",
+  "Mr. Nikhil Yadav",
+  "Mr. Pawan Singh"
+];
+
+const SUP_STAFF = ["Mr. Ankush Jha", "Mr. Mukesh Sahu"];
+const FIXED = {name:"Ms. Ankita Pradhan (Tab)", cluster:"MIHY-A-wing", shift:"G"};
+const SHIFTS = ["M","G","G2","E"];
+const SUP_SHIFTS = ["G","G2"];
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+let weekOffset = 0;
+let rosters = {};
+let leaves = {};
+
+function seeded(seed){
+  let s = seed|0;
+  return () => { s=(s*1664525+1013904223)&0xffffffff; return (s>>>0)/4294967296; };
+}
+function shuffle(arr, rng){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function buildRoster(wo){
+  const rng = seeded(wo * 73856093 + 19349663);
+  const slots = [];
+  CLUSTERS.forEach(c => { for(let i=0;i<c.slots;i++) slots.push(c.name); });
+
+  const staffShuffled = shuffle([...ROT_STAFF], rng);
+  const slotShuffled  = shuffle([...slots], rng);
+
+  const r = {};
+  staffShuffled.forEach((name, i) => {
+    const cluster = slotShuffled[i] || "—";
+    const shiftIdx = (i + wo) % SHIFTS.length;
+    const shift = SHIFTS[shiftIdx];
+    r[name] = { cluster, shift, days: DAYS.map(() => shift) };
+  });
+  SUP_STAFF.forEach((name, i) => {
+    const shiftIdx = (i + wo) % SUP_SHIFTS.length;
+    const shift = SUP_SHIFTS[shiftIdx];
+    r[name] = { cluster:"Supervisor", shift, days: DAYS.map(() => shift) };
+  });
+  r[FIXED.name] = { cluster: FIXED.cluster, shift: FIXED.shift, days: DAYS.map(() => FIXED.shift) };
+
+  rosters[wo] = r;
+  return r;
+}
+
+function getRoster(wo){ return rosters[wo] || buildRoster(wo); }
+function leaveKey(n,wo,di){ return n+"|"+wo+"|"+di; }
+
+function getWeekDates(wo){
+  const base = new Date(2026, 5, 1);
+  const dow = base.getDay();
+  const diff = dow===0 ? -6 : 1-dow;
+  base.setDate(base.getDate() + diff + wo*7);
+  const dates = [];
+  for(let i=0;i<7;i++){ const d=new Date(base); d.setDate(d.getDate()+i); dates.push(d); }
+  return dates;
+}
+
+function fmt(d){ return d.getDate()+"-"+MONTHS[d.getMonth()]+"-"+String(d.getFullYear()).slice(2); }
+
+function render(){
+  const dates = getWeekDates(weekOffset);
+  const wLabel = fmt(dates[0]) + " – " + fmt(dates[6]);
+  document.getElementById("week-label").textContent = wLabel;
+  document.getElementById("print-week-label").textContent = "Week " + (weekOffset+1) + " : " + wLabel;
+  document.getElementById("week-badge").textContent = "Week " + (weekOffset+1);
+
+  const thead = document.getElementById("thead");
+  const tbody  = document.getElementById("tbody");
+
+  thead.innerHTML = `<tr>
+    <th class="th-name">Employee Name</th>
+    <th class="th-cluster">OPD Cluster</th>
+    ${DAYS.map((d,i) => `<th class="th-day">${d}<br><span style="font-size:9px;font-weight:400;opacity:0.85">${fmt(dates[i])}</span></th>`).join("")}
+    <th class="th-sun">Sun<br><span style="font-size:9px;font-weight:400;opacity:0.85">${fmt(dates[6])}</span></th>
+  </tr>`;
+
+  const r = getRoster(weekOffset);
+  const clusterOrder = [...CLUSTERS.map(c=>c.name), "Supervisor", "MIHY-A-wing"];
+  const groups = {};
+  clusterOrder.forEach(c => groups[c] = []);
+
+  [...ROT_STAFF, ...SUP_STAFF, FIXED.name].forEach(name => {
+    const data = r[name];
+    if(data){ (groups[data.cluster] || (groups[data.cluster]=[])).push(name); }
+  });
+
+  let rows = "";
+  clusterOrder.forEach(cl => {
+    const group = groups[cl];
+    if(!group || !group.length) return;
+    const slotInfo = CLUSTERS.find(c => c.name===cl);
+    const slotLabel = slotInfo
+      ? `<span class="cluster-slot-label">(${group.length} / ${slotInfo.slots} slots filled)</span>` : "";
+    rows += `<tr class="cluster-header"><td colspan="9">${cl} ${slotLabel}</td></tr>`;
+    group.forEach(name => {
+      const data = r[name];
+      let cells = "";
+      DAYS.forEach((_,di) => {
+        const lk = leaveKey(name, weekOffset, di);
+        if(leaves[lk]){ cells += `<td class="cell-Leave">Leave</td>`; return; }
+        cells += `<td class="cell-${data.shift}">${data.shift}</td>`;
+      });
+      rows += `<tr>
+        <td class="td-name" title="${name}">${name}</td>
+        <td class="td-cluster">${data.cluster}</td>
+        ${cells}
+        <td class="cell-WOFF">W/OFF</td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = rows;
+}
+
+function changeWeek(d){ weekOffset += d; render(); }
+function regenWeek(){ delete rosters[weekOffset]; render(); }
+
+function openLeave(){
+  const sel = document.getElementById("lv-staff");
+  sel.innerHTML = [...ROT_STAFF, ...SUP_STAFF, FIXED.name]
+    .map(n => `<option value="${n}">${n}</option>`).join("");
+  document.getElementById("leave-modal").classList.add("open");
+}
+function closeLeave(){ document.getElementById("leave-modal").classList.remove("open"); }
+function doLeave(add){
+  const name = document.getElementById("lv-staff").value;
+  const di   = parseInt(document.getElementById("lv-day").value);
+  const lk   = leaveKey(name, weekOffset, di);
+  if(add) leaves[lk] = true; else delete leaves[lk];
+  closeLeave(); render();
+}
+function clearLeaves(){
+  Object.keys(leaves).filter(k => k.includes("|"+weekOffset+"|")).forEach(k => delete leaves[k]);
+  render();
+}
+
+function exportCSV(){
+  const dates = getWeekDates(weekOffset);
+  const r = getRoster(weekOffset);
+  let csv = "Employee Name,OPD Cluster," + DAYS.map((d,i)=>d+" "+fmt(dates[i])).join(",") + ",Sun "+fmt(dates[6])+"\n";
+  [...ROT_STAFF, ...SUP_STAFF, FIXED.name].forEach(name => {
+    const data = r[name]; if(!data) return;
+    const row = [`"${name}"`, `"${data.cluster}"`];
+    DAYS.forEach((_,di) => {
+      const lk = leaveKey(name, weekOffset, di);
+      row.push(leaves[lk] ? "Leave" : data.shift);
+    });
+    row.push("W/OFF");
+    csv += row.join(",") + "\n";
+  });
+  csv += "\n\"G2 Note: Lunch Relieve - Uro and GI & Ortho. Uro Relieving to be started from 01:30 PM.\"\n";
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = "Medanta_Roster_Week"+(weekOffset+1)+".csv";
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// close modal on bg click
+document.getElementById("leave-modal").addEventListener("click", function(e){
+  if(e.target === this) closeLeave();
+});
+
+render();
+</script>
+</body>
+</html>
