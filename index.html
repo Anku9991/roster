@@ -222,6 +222,8 @@ tbody tr:hover{background:#f7f9fd}
     <div class="shift-opt cell-G" onclick="selectEditShift('G')">G</div>
     <div class="shift-opt cell-G2" onclick="selectEditShift('G2')">G2</div>
     <div class="shift-opt cell-E" onclick="selectEditShift('E')">E</div>
+    <div class="shift-opt cell-Leave" onclick="selectEditShift('Leave')">Leave</div>
+    <div class="shift-opt cell-WOFF" onclick="selectEditShift('WOFF')" style="background:var(--Off-bg);color:var(--Off-text);border-color:var(--border)">W/OFF</div>
   </div>
   <div class="edit-popup-btns">
     <button class="btn btn-outline" onclick="closeEditPopup()">Cancel</button>
@@ -276,14 +278,17 @@ const CLUSTER_ORDER = ["Neurology","Respiratory","Urology","GI & Ortho","Gynae"]
 
 const ROT_STAFF = [
   "Mr. Kunj Bihari Tiwari","Mr. Siddhant Shukla","Ms. Dolly Sharma",
-  "Mr. Abhinandan Shukla","Mr. Girdhar Singh","Mr. Mohd Aquib",
+  "Mr. Abhinandan Shukla","Mr. Mohd Aquib",
   "Mr. Naseem Akhtar","Ms. Dipali Singh","Mr. Subham Kumar",
   "Mr. Lalit Singh Bisht","Ms. Ranjana Maddheshiya","Mr. Nikhil Yadav",
   "Mr. Pawan Singh"
 ];
 const SUP_STAFF = ["Mr. Ankush Jha","Mr. Mukesh Sahu"];
-const FIXED = {name:"Ms. Ankita Pradhan (Tab)", cluster:"MIHY-A-wing", shift:"G"};
-const ALL_STAFF = [...ROT_STAFF,...SUP_STAFF,FIXED.name];
+const FIXED_STAFF = [
+  {name:"Ms. Ankita Pradhan (Tab)", cluster:"MIHY-A-wing", shift:"G"},
+  {name:"Mr. Girdhar Singh", cluster:"Respiratory", shift:"G"}
+];
+const ALL_STAFF = [...ROT_STAFF,...SUP_STAFF,...FIXED_STAFF.map(f=>f.name)];
 const SUP_SHIFTS = ["G","G2"];
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -292,57 +297,51 @@ let weekOffset = 0;
 let rosters = {};
 let leaves = {};
 let manualEdits = {};
+let manualNameEdits = {};
 let selectedRepStaff = null;
 let editTarget = null;
 let editShift = null;
 
-function seeded(s){
-  s=s|0;
-  return ()=>{s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/4294967296;};
-}
-function shuffle(arr,rng){
-  const a=[...arr];
-  for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
-  return a;
-}
+const LOGICAL_SLOTS = [
+  {cluster:"Neurology", slotIdx:0},
+  {cluster:"Neurology", slotIdx:1},
+  {cluster:"Neurology", slotIdx:3},
+  {cluster:"Gynae", slotIdx:3},
+  {cluster:"Gynae", slotIdx:0},
+  {cluster:"Neurology", slotIdx:2},
+  {cluster:"Urology", slotIdx:1},
+  {cluster:"Urology", slotIdx:0},
+  {cluster:"GI & Ortho", slotIdx:1},
+  {cluster:"GI & Ortho", slotIdx:0},
+  {cluster:"Gynae", slotIdx:2},
+  {cluster:"Gynae", slotIdx:1}
+];
 
 function buildRoster(wo){
-  const rng = seeded(wo*73856093+19349663);
-
-  // Build slot list in cluster order with slot index
-  const slots = []; // [{cluster, slotIdx}]
-  CLUSTER_ORDER.forEach(cl=>{
-    const def = CLUSTER_DEF[cl];
-    for(let i=0;i<def.slots;i++) slots.push({cluster:cl, slotIdx:i});
-  });
-  // total = 13 slots for 13 rot staff
-
-  const staffShuffled = shuffle([...ROT_STAFF], rng);
-  const slotShuffled  = shuffle([...slots], rng);
-
   const r = {};
 
-  // Assign each rotational staff to a slot
-  staffShuffled.forEach((name, i)=>{
-    const slot = slotShuffled[i] || {cluster:"—", slotIdx:0};
+  ROT_STAFF.forEach((name, i)=>{
+    const cycleIndex = (i + wo) % LOGICAL_SLOTS.length;
+    const cyclePos = cycleIndex >= 0 ? cycleIndex : (LOGICAL_SLOTS.length + cycleIndex);
+    const slot = LOGICAL_SLOTS[cyclePos];
     const cl = slot.cluster;
     const def = CLUSTER_DEF[cl];
     const pat = def ? def.patterns[slot.slotIdx] : {mon:"G",week:"G"};
-
-    // days: index 0=Mon, 1=Tue...5=Sat
     const days = DAYS.map((_,di)=> di===0 ? pat.mon : pat.week);
-
     r[name] = {cluster: cl, slotIdx: slot.slotIdx, days};
   });
 
   // Supervisors: G/G2 rotation
   SUP_STAFF.forEach((name,i)=>{
-    const shift = SUP_SHIFTS[(i+wo)%SUP_SHIFTS.length];
+    const pos = (i + wo) % SUP_SHIFTS.length;
+    const shift = SUP_SHIFTS[pos >= 0 ? pos : (SUP_SHIFTS.length + pos)];
     r[name] = {cluster:"Supervisor", slotIdx:i, days: DAYS.map(()=>shift)};
   });
 
-  // Fixed
-  r[FIXED.name] = {cluster: FIXED.cluster, slotIdx:0, days: DAYS.map(()=>FIXED.shift)};
+  // Fixed Staff
+  FIXED_STAFF.forEach(f => {
+    r[f.name] = {cluster: f.cluster, slotIdx:0, days: DAYS.map(()=>f.shift)};
+  });
 
   rosters[wo] = r;
   return r;
@@ -462,8 +461,9 @@ function render(){
           onclick="openEditPopup(event,'${esc(name)}',${di},'${sh}')"
           title="Click to edit manually">${sh}</td>`;
       });
+      const eName = manualNameEdits[weekOffset+"|"+name] || name;
       rows+=`<tr>
-        <td class="td-name" title="${name}">${name}</td>
+        <td class="td-name cell-editable" title="Click to edit name" onclick="editName('${esc(name)}')">${eName}</td>
         <td class="td-cluster">${data.cluster}</td>
         ${cells}
         <td class="cell-WOFF">W/OFF</td>
@@ -617,7 +617,21 @@ function closeEditPopup(){
 
 function clearManualEdits(){
   Object.keys(manualEdits).filter(k=>k.includes("|"+weekOffset+"|")).forEach(k=>delete manualEdits[k]);
+  Object.keys(manualNameEdits).filter(k=>k.startsWith(weekOffset+"|")).forEach(k=>delete manualNameEdits[k]);
   render();
+}
+
+function editName(origName) {
+  const current = manualNameEdits[weekOffset+"|"+origName] || origName;
+  const newName = prompt("Enter new name for this week:", current);
+  if (newName !== null) {
+    if (newName.trim() === "" || newName === origName) {
+      delete manualNameEdits[weekOffset+"|"+origName];
+    } else {
+      manualNameEdits[weekOffset+"|"+origName] = newName.trim();
+    }
+    render();
+  }
 }
 
 function changeWeek(d){weekOffset+=d;render();}
@@ -629,7 +643,8 @@ function exportCSV(){
   let csv="Employee Name,OPD Cluster,"+DAYS.map((d,i)=>d+" "+fmt(dates[i])).join(",")+",Sun "+fmt(dates[6])+"\n";
   ALL_STAFF.forEach(name=>{
     const data=r[name];if(!data)return;
-    const row=[`"${name}"`,`"${data.cluster}"`];
+    const eName = manualNameEdits[weekOffset+"|"+name] || name;
+    const row=[`"${eName}"`,`"${data.cluster}"`];
     DAYS.forEach((_,di)=>{
       const lk=leaveKey(name,weekOffset,di);
       const ek=editKey(name,weekOffset,di);
