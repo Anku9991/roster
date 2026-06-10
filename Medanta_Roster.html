@@ -221,26 +221,20 @@ tbody tr:hover{background:#f7f9fd}
   </div>
 </div>
 
-<!-- NAME EDIT MODAL -->
+<!-- SWAP MODAL -->
 <div class="modal-bg" id="name-modal">
   <div class="modal" style="width: 320px;">
-    <h3>✏️ Edit Name & Replacement</h3>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px" id="name-modal-info"></div>
+    <h3>🔄 Shift & Swap Staff</h3>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px" id="name-modal-info"></div>
 
-    <label>Select Replacement Staff (from roster)</label>
+    <label>Select Staff to Replace (Swap positions):</label>
     <select id="name-rep-select">
       <option value="">— Select Staff —</option>
     </select>
 
-    <div style="text-align:center;font-size:10px;color:var(--text-muted);margin:8px 0;font-weight:600">OR</div>
-
-    <label>Custom Name (Manual typing)</label>
-    <input type="text" id="name-custom-input" style="width:100%;padding:8px 10px;font-size:12px;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;" placeholder="Type any name...">
-
     <div class="modal-btns" style="margin-top:18px">
-      <button class="btn btn-red" onclick="resetNameEdit()" style="margin-right:auto">Reset</button>
       <button class="btn btn-outline" onclick="closeNameModal()">Cancel</button>
-      <button class="btn btn-green" onclick="applyNameEdit()">Apply</button>
+      <button class="btn btn-green" onclick="applySwap()">Swap Staff</button>
     </div>
   </div>
 </div>
@@ -330,7 +324,7 @@ let cycleOffset = 0;
 let rosters = {};
 let leaves = {};
 let manualEdits = {};
-let manualNameEdits = {};
+let manualSwaps = {};
 let selectedRepStaff = null;
 let editTarget = null;
 let editShift = null;
@@ -375,6 +369,15 @@ function buildRoster(wo){
   FIXED_STAFF.forEach(f => {
     r[f.name] = {cluster: f.cluster, slotIdx:0, days: DAYS.map(()=>f.shift)};
   });
+
+  // Apply manual swaps
+  if (manualSwaps[wo]) {
+    manualSwaps[wo].forEach(s => {
+      const temp = r[s.a];
+      r[s.a] = r[s.b];
+      r[s.b] = temp;
+    });
+  }
 
   rosters[wo] = r;
   return r;
@@ -495,9 +498,8 @@ function render(){
           onclick="openEditPopup(event,'${esc(name)}',${di},'${sh}')"
           title="Click to edit manually">${sh}</td>`;
       });
-      const eName = manualNameEdits[weekOffset+"|"+name] || name;
       rows+=`<tr>
-        <td class="td-name cell-editable" title="Click to edit name" onclick="editName('${esc(name)}')">${eName}</td>
+        <td class="td-name cell-editable" title="Click to swap staff" onclick="editName('${esc(name)}')">${name}</td>
         <td class="td-cluster">${data.cluster}</td>
         ${cells}
         <td class="cell-WOFF">W/OFF</td>
@@ -657,48 +659,42 @@ function closeEditPopup(){
 
 function clearManualEdits(){
   Object.keys(manualEdits).filter(k=>k.includes("|"+weekOffset+"|")).forEach(k=>delete manualEdits[k]);
-  Object.keys(manualNameEdits).filter(k=>k.startsWith(weekOffset+"|")).forEach(k=>delete manualNameEdits[k]);
+  delete manualSwaps[weekOffset];
+  delete rosters[weekOffset]; // Rebuild to clear swaps
   render();
 }
 
-let currentEditNameTarget = null;
+let currentSwapTarget = null;
 function editName(origName) {
-  currentEditNameTarget = origName;
-  const current = manualNameEdits[weekOffset+"|"+origName] || origName;
-  document.getElementById("name-modal-info").textContent = "Editing for: " + origName + " (Week " + (weekOffset+1) + ")";
+  currentSwapTarget = origName;
+  const r = getRoster(weekOffset);
+  const currentCluster = r[origName] ? r[origName].cluster : "Unknown";
+  
+  document.getElementById("name-modal-info").innerHTML = `Moving <strong>${origName}</strong> out of <strong>${currentCluster}</strong>.`;
   
   const sel = document.getElementById("name-rep-select");
-  sel.innerHTML = `<option value="">— Select Staff —</option>` + ALL_STAFF.map(n=>`<option value="${n}">${n}</option>`).join("");
-  
-  document.getElementById("name-rep-select").value = ALL_STAFF.includes(current) ? current : "";
-  document.getElementById("name-custom-input").value = ALL_STAFF.includes(current) ? "" : (current === origName ? "" : current);
+  sel.innerHTML = `<option value="">— Select Staff to Replace —</option>` + 
+    ALL_STAFF.filter(n => n !== origName).map(n => {
+      const cl = r[n] ? r[n].cluster : "—";
+      return `<option value="${n}">${n} (${cl})</option>`;
+    }).join("");
   
   document.getElementById("name-modal").classList.add("open");
 }
 
 function closeNameModal() {
   document.getElementById("name-modal").classList.remove("open");
-  currentEditNameTarget = null;
+  currentSwapTarget = null;
 }
 
-function applyNameEdit() {
-  if(!currentEditNameTarget) return;
-  const selVal = document.getElementById("name-rep-select").value;
-  const txtVal = document.getElementById("name-custom-input").value.trim();
-  const finalName = txtVal || selVal;
-  
-  if(finalName && finalName !== currentEditNameTarget) {
-    manualNameEdits[weekOffset+"|"+currentEditNameTarget] = finalName;
-  } else {
-    delete manualNameEdits[weekOffset+"|"+currentEditNameTarget];
+function applySwap() {
+  if(!currentSwapTarget) return;
+  const targetB = document.getElementById("name-rep-select").value;
+  if (targetB) {
+    if (!manualSwaps[weekOffset]) manualSwaps[weekOffset] = [];
+    manualSwaps[weekOffset].push({a: currentSwapTarget, b: targetB});
+    delete rosters[weekOffset]; // Rebuild with new swap
   }
-  closeNameModal();
-  render();
-}
-
-function resetNameEdit() {
-  if(!currentEditNameTarget) return;
-  delete manualNameEdits[weekOffset+"|"+currentEditNameTarget];
   closeNameModal();
   render();
 }
@@ -725,10 +721,23 @@ function exportImage() {
     container.style.padding = "0 0 14px 0";
     container.style.background = "var(--gray-bg)";
     
-    const link = document.createElement("a");
-    link.download = "Medanta_Roster_Week" + (weekOffset+1) + "_WhatsApp.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    canvas.toBlob(blob => {
+      const file = new File([blob], "Medanta_Roster_Week" + (weekOffset+1) + ".png", { type: "image/png" });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: "Medanta OPD Roster",
+          text: "Here is the OPD Roster for Week " + (weekOffset+1)
+        }).catch(err => console.log("Share failed:", err));
+      } else {
+        const link = document.createElement("a");
+        link.download = file.name;
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        alert("Image downloaded! You can now attach it in WhatsApp.");
+      }
+    });
   });
 }
 
@@ -738,8 +747,7 @@ function exportCSV(){
   let csv="Employee Name,OPD Cluster,"+DAYS.map((d,i)=>d+" "+fmt(dates[i])).join(",")+",Sun "+fmt(dates[6])+"\n";
   ALL_STAFF.forEach(name=>{
     const data=r[name];if(!data)return;
-    const eName = manualNameEdits[weekOffset+"|"+name] || name;
-    const row=[`"${eName}"`,`"${data.cluster}"`];
+    const row=[`"${name}"`,`"${data.cluster}"`];
     DAYS.forEach((_,di)=>{
       const lk=leaveKey(name,weekOffset,di);
       const ek=editKey(name,weekOffset,di);
