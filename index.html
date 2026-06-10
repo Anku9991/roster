@@ -239,18 +239,29 @@ tbody tr:hover{background:#f7f9fd}
   </div>
 </div>
 
-<!-- EXPORT MODAL (FALLBACK) -->
+<!-- EXPORT MODAL -->
 <div class="modal-bg" id="export-modal">
-  <div class="modal" style="width: 340px; text-align:center;">
-    <h3>⚠️ Clipboard Access Failed</h3>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">
-      Your browser blocked automatic copying. Please download the image manually to share it.
+  <div class="modal" style="width: 380px; text-align:center;">
+    <h3>✅ Image Ready!</h3>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+      Click the button below to instantly copy the image and open WhatsApp Web.
+    </div>
+
+    <button class="btn btn-green" id="btn-copy-wa" style="width:100%; padding:12px; font-size:14px; margin-bottom: 12px; display:flex; align-items:center; justify-content:center; gap:8px;">
+      <span>📋 Copy & Open WhatsApp Web</span>
+    </button>
+    
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px; border-top:1px solid var(--border); padding-top:10px;">
+      <i>Fallback: If automatic copy fails, right-click the image below to copy it manually, then click "Open WhatsApp Web".</i>
     </div>
     
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      <button class="btn btn-blue" id="btn-download-img" style="width:100%; padding:10px; font-size:13px;">⬇️ Download Image</button>
-      <button class="btn btn-outline" onclick="document.getElementById('export-modal').classList.remove('open')" style="width:100%; padding:10px; font-size:13px;">Cancel</button>
+    <img id="export-preview-img" style="max-width:100%; border:1px solid var(--border); border-radius:6px; margin-bottom:8px; display:block;" />
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-blue" onclick="window.open('https://web.whatsapp.com/send?text=Please%20paste%20the%20copied%20roster%20image%20here!', 'whatsapp_web')" style="flex:1; padding:10px; font-size:12px;">💻 Open WhatsApp Web</button>
+      <button class="btn btn-outline" id="btn-download-img" style="flex:1; padding:10px; font-size:12px;">⬇️ Download</button>
     </div>
+    <button class="btn btn-outline" onclick="document.getElementById('export-modal').classList.remove('open')" style="width:100%; padding:10px; font-size:13px; margin-top:8px">Cancel</button>
   </div>
 </div>
 
@@ -721,15 +732,11 @@ function regenWeek(){
   render();
 }
 
+let currentExportBlob = null;
+
 function exportImage() {
   const container = document.getElementById("export-container");
   const title = document.getElementById("export-title");
-  
-  // Synchronous window open to bypass popup blockers
-  const waWin = window.open('', 'whatsapp_web');
-  if (waWin) {
-    waWin.document.body.innerHTML = "<h2 style='font-family:sans-serif;text-align:center;margin-top:50px;'>Generating Premium Roster... please wait! ⏳</h2>";
-  }
   
   // Temporarily style for export
   title.style.display = "block";
@@ -748,38 +755,37 @@ function exportImage() {
     btn.innerHTML = origText;
     
     canvas.toBlob(blob => {
-      // Try to copy to clipboard
-      try {
-        const item = new ClipboardItem({ "image/png": blob });
-        navigator.clipboard.write([item]).then(() => {
-          // Success! Redirect the open tab to the Send page
-          if (waWin) {
-            waWin.location.href = "https://web.whatsapp.com/send?text=📋 *Roster Image Copied!*%0A1.%20Select%20a%20Group/Contact.%0A2.%20Press%20*Ctrl%2BV*%20to%20PASTE%20the%20image!";
-          }
-        }).catch(e => {
-          console.log("Clipboard write failed", e);
-          if (waWin) waWin.close();
-          showDownloadFallback(blob);
-        });
-      } catch(e) {
-        console.log("Clipboard API not supported", e);
-        if (waWin) waWin.close();
-        showDownloadFallback(blob);
-      }
+      currentExportBlob = blob;
+      const modal = document.getElementById("export-modal");
+      const imgPreview = document.getElementById("export-preview-img");
+      
+      const blobUrl = URL.createObjectURL(blob);
+      imgPreview.src = blobUrl;
+      
+      document.getElementById("btn-copy-wa").onclick = () => {
+        try {
+          const item = new ClipboardItem({ "image/png": blob });
+          navigator.clipboard.write([item]).then(() => {
+            window.open("https://web.whatsapp.com/send?text=📋 *Roster Image Copied!*%0A1.%20Select%20a%20Group/Contact.%0A2.%20Press%20*Ctrl%2BV*%20to%20PASTE%20the%20image!", "whatsapp_web");
+            modal.classList.remove("open");
+          }).catch(e => {
+            alert("Clipboard write failed! Please right-click the image to copy it manually.");
+          });
+        } catch(e) {
+          alert("Clipboard API not supported or blocked (often happens if you open this file directly without a server). Please right-click the image below to copy it manually.");
+        }
+      };
+      
+      document.getElementById("btn-download-img").onclick = () => {
+        const link = document.createElement("a");
+        link.download = "Medanta_Roster_Week" + (weekOffset+1) + "_WhatsApp.png";
+        link.href = blobUrl;
+        link.click();
+      };
+      
+      modal.classList.add("open");
     });
   });
-}
-
-function showDownloadFallback(blob) {
-  const modal = document.getElementById("export-modal");
-  document.getElementById("btn-download-img").onclick = () => {
-    const link = document.createElement("a");
-    link.download = "Medanta_Roster_Week" + (weekOffset+1) + "_WhatsApp.png";
-    link.href = URL.createObjectURL(blob);
-    link.click();
-    modal.classList.remove("open");
-  };
-  modal.classList.add("open");
 }
 
 function exportCSV(){
